@@ -15,6 +15,7 @@ scripts/
     http.mjs              klient HTTP + forward proxy (fallback)
     edmx.mjs              parser $metadata OData V2
     toolgen.mjs           reguly mapowania EDMX -> Tool/ToolParameter
+    openai.mjs             opcjonalne opisy (ToolDesc/ParamDesc) przez OpenAI
 ```
 
 Zero zaleznosci npm - wystarczy Node 18+.
@@ -58,6 +59,28 @@ zapisano    : out/tools.json
 
 Nic nie leci do SAP. `out/tools.json` to zwykla tablica payloadow - mozesz ja
 recznie poprawic przed wyslaniem.
+
+### Opisy przez OpenAI (opcjonalnie)
+
+Domyslnie `ToolDesc`/`ParamDesc` sa szablonowe (offline, z `toolgen.mjs`,
+uzywaja `sap:label` z `$metadata` gdy jest dostepny). Zeby zamiast tego
+wygenerowac je przez OpenAI:
+
+```bash
+# w .env:
+USE_OPENAI_DESCRIPTIONS=true
+OPENAI_API_KEY=sk-...
+
+npm run tools:generate
+```
+
+Jeden request na narzedzie (model widzi cala definicje: encje, pola, wszystkie
+parametry naraz), wciaz offline wobec SAP - wynik i tak ladujesz do
+`out/tools.json` i przegladasz przed krokiem 3. `--no-openai` wymusza
+szablon, nawet gdy `USE_OPENAI_DESCRIPTIONS=true` jest ustawione w `.env`.
+Narzedzia, dla ktorych request do OpenAI sie nie powiedzie, zostaja z opisem
+szablonowym (log pokazuje `POMINIETO (...)`), reszta pipeline'u nie jest
+przerywana.
 
 ## Krok 3 - wyslij do repozytorium narzedzi
 
