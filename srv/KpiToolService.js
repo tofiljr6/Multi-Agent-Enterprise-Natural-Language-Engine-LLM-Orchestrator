@@ -26,7 +26,13 @@ export default cds.service.impl(function () {
                 url: TOOL_SET_URL
             });
 
-            return JSON.stringify(response.data);
+            // Zwracamy surowy JSON z jawnym Content-Type, zamiast pozwolic
+            // CAP-owi opakowac go w koperte OData ({"value": "...string..."}).
+            // Dzieki temu klient (przegladarka, Postman) dostaje czysty,
+            // sformatowany JSON zamiast zescapowanego stringa w stringu.
+            req._.res.set('Content-Type', 'application/json');
+            req._.res.send(JSON.stringify(response.data, null, 2));
+            return;
 
         } catch (err) {
             console.error('CALL FAILED');
