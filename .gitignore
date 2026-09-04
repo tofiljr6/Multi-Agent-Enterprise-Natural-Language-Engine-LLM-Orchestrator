@@ -17,3 +17,9 @@ mta_archives/
 
 # @cap-js/cds-typer
 @cds-models
+
+# skrypty tool-generatora
+.env
+default-env.json
+.cache/
+out/

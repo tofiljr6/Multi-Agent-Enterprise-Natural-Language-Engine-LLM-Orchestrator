@@ -11,7 +11,11 @@
     "@cap-js/sqlite": "^3"
   },
   "scripts": {
-    "start": "cds-serve"
+    "start": "cds-serve",
+    "metadata": "node scripts/fetch-metadata.mjs",
+    "tools:generate": "node scripts/generate-tools.mjs",
+    "tools:preview": "node scripts/post-tools.mjs --dry-run",
+    "tools:post": "node scripts/post-tools.mjs"
   },
   "private": true,
   "cds": {
