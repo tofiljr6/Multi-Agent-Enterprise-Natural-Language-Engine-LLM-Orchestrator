@@ -27,11 +27,11 @@ if (dryRun) {
   process.exit(0);
 }
 
-if (config.target.servicePath.includes('ZXXXX')) {
+if (!config.target.configured) {
   console.error(
-    'TOOL_REPO_SERVICE_PATH nadal ma placeholder ZXXXX_OD_TOOL_SRV.\n' +
+    'TOOL_REPO_SERVICE_PATH nie jest ustawiona w .env (uzywam domyslnego placeholdera).\n' +
     'Ustaw prawdziwa sciezke swojego serwisu w .env, np.:\n' +
-    '  TOOL_REPO_SERVICE_PATH=/sap/opu/odata/sap/ZMTO_OD_TOOL_SRV'
+    '  TOOL_REPO_SERVICE_PATH=/sap/opu/odata/sap/ZXXXX_KPI_SRV'
   );
   process.exit(1);
 }

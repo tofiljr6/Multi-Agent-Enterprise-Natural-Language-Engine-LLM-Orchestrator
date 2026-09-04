@@ -31,8 +31,12 @@ export const config = {
 
   // --- cel: Twoj tool repository -----------------------------------------
   // UWAGA: TOOL_REPO_SERVICE_PATH musisz ustawic sam - to jedyna nieznana wartosc.
+  // `configured` mowi, czy .env faktycznie ustawia ta zmienna - nie da sie
+  // tego poznac po tresci wartosci, bo prawdziwa nazwa serwisu tez moze
+  // zawierac "ZXXXX" (tak jak ZXXXX_KPI_SRV w srv/KpiToolService.js).
   target: {
     servicePath: env.TOOL_REPO_SERVICE_PATH ?? '/sap/opu/odata/sap/ZXXXX_OD_TOOL_SRV',
+    configured: env.TOOL_REPO_SERVICE_PATH !== undefined,
     entitySet: env.TOOL_REPO_ENTITYSET ?? 'ToolSet',
     navigationProperty: 'to_Parameters',
   },
