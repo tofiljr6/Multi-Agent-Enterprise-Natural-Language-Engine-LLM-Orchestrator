@@ -82,6 +82,12 @@ answer:
 The same tool call info (`[agent] tool ...(...) -> ...`) is also logged
 server-side, in the `cds watch` terminal.
 
+There is also a chat UI on top of this endpoint - a Fiori freestyle SAPUI5
+app at `app/chat` (open `http://localhost:4004/chat/index.html` under
+`cds watch`). It renders the answer and, behind a collapsed "Thinking"
+disclosure, the `toolsAvailable` catalogue and every `toolCall` with its
+arguments and result. See [chat-ui.md](chat-ui.md).
+
 Plain curl works too, if you prefer it:
 
 ```bash
