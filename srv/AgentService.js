@@ -50,9 +50,22 @@ export default cds.service.impl(function () {
             });
 
             const answer = result.messages.at(-1)?.content ?? '';
+
+            // Argumenty wywolania siedza w tool_calls poprzedzajacej AIMessage,
+            // dopasowane po id do ToolMessage.tool_call_id - trzeba je sparowac,
+            // zeby wiedziec nie tylko co odpowiedzialo narzedzie, ale i z czym
+            // zostalo wywolane.
+            const argsByCallId = new Map();
+            for (const m of result.messages) {
+                for (const tc of m.tool_calls ?? []) argsByCallId.set(tc.id, tc.args);
+            }
             const toolCalls = result.messages
                 .filter((m) => m.constructor?.name === 'ToolMessage')
-                .map((m) => ({ tool: m.name, output: m.content }));
+                .map((m) => ({ tool: m.name, args: argsByCallId.get(m.tool_call_id) ?? {}, output: m.content }));
+
+            for (const c of toolCalls) {
+                console.log(`[agent] tool ${c.tool}(${JSON.stringify(c.args)}) -> ${String(c.output).slice(0, 500)}`);
+            }
 
             sendJson(req, 200, {
                 answer,

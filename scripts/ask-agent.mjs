@@ -48,11 +48,14 @@ if (body?.toolsAvailable) {
 }
 
 if (body?.toolCalls?.length) {
-  console.log('wywolane narzedzia:');
-  for (const c of body.toolCalls) {
-    console.log(`  - ${c.tool} -> ${String(c.output).slice(0, 300)}`);
+  console.log(`wywolane narzedzia (${body.toolCalls.length}):`);
+  for (const [i, c] of body.toolCalls.entries()) {
+    console.log(`  [${i + 1}] ${c.tool}(${JSON.stringify(c.args ?? {})})`);
+    console.log(`      -> ${c.output}`);
   }
   console.log();
+} else if (body) {
+  console.log('wywolane narzedzia: (zadne - model odpowiedzial bez uzycia narzedzia)\n');
 }
 
 console.log('odpowiedz:');
