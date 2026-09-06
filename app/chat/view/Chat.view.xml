@@ -1,0 +1,93 @@
+<mvc:View
+  controllerName="menelo.chat.controller.Chat"
+  xmlns="sap.m"
+  xmlns:mvc="sap.ui.core.mvc"
+  xmlns:core="sap.ui.core"
+  xmlns:f="sap.f"
+  height="100%"
+  displayBlock="true">
+
+  <!-- renderType="Bare": the default wraps each child in a .sapMFlexItem div with
+       min-height:auto, which stops the conversation area from ever shrinking. -->
+  <VBox class="menRoot" renderType="Bare">
+
+    <!-- Fiori shell header -->
+    <f:ShellBar
+      title="MeNeLo"
+      secondTitle="SAP Agent"
+      showNotifications="false"
+      showProductSwitcher="false"
+      showSearch="false"
+      class="menShellBar">
+      <f:additionalContent>
+        <OverflowToolbarButton
+          icon="sap-icon://create-form"
+          text="New chat"
+          type="Transparent"
+          press=".onNewChat"
+          class="menNewChat"/>
+      </f:additionalContent>
+    </f:ShellBar>
+
+    <!-- conversation -->
+    <ScrollContainer id="scroll" vertical="true" horizontal="false" height="100%" width="100%" class="menScroll">
+      <VBox class="menThread">
+
+        <!-- empty state -->
+        <VBox id="hero" class="menHero" alignItems="Center" visible="{= ${/messages}.length === 0 }">
+          <core:Icon src="sap-icon://ai" class="menHeroIcon"/>
+          <Title text="Ask the SAP agent" level="H2" class="menHeroTitle"/>
+          <Text text="Ask about business partners, customers or suppliers. The agent loads its tools live from the repository on SA1_300, calls them to pull real data, and answers here. Open “Thinking” under any answer to see which tools it used." class="menHeroText"/>
+          <VBox id="heroCommands" class="menHeroCommands" width="100%"/>
+        </VBox>
+
+        <VBox id="messages" class="menMessages"/>
+
+        <!-- thinking indicator -->
+        <HBox id="busy" class="menThinking" alignItems="Center" visible="{/busy}">
+          <BusyIndicator size="1rem" class="menThinkingDot"/>
+          <Text text="{/busyText}" class="menThinkingText"/>
+        </HBox>
+
+      </VBox>
+    </ScrollContainer>
+
+    <!-- composer -->
+    <VBox class="menComposerWrap">
+      <VBox class="menComposer">
+
+        <HBox class="menInputBox" alignItems="Center">
+          <TextArea
+            id="input"
+            value="{/input}"
+            placeholder="Ask about business partners, customers or suppliers…"
+            rows="1"
+            growing="true"
+            growingMaxLines="8"
+            width="100%"
+            liveChange=".onLiveChange"
+            class="menInput">
+            <layoutData>
+              <FlexItemData growFactor="1" shrinkFactor="1" minWidth="0"/>
+            </layoutData>
+          </TextArea>
+          <Button
+            id="send"
+            icon="sap-icon://paper-plane"
+            type="Emphasized"
+            tooltip="Send (Enter)"
+            enabled="{= ${/input}.length &gt; 0 &amp;&amp; !${/busy} }"
+            press=".onSend"
+            class="menSend">
+            <layoutData>
+              <FlexItemData growFactor="0" shrinkFactor="0"/>
+            </layoutData>
+          </Button>
+        </HBox>
+
+        <Text text="Enter to send · Shift+Enter for a new line" class="menFootnote"/>
+      </VBox>
+    </VBox>
+
+  </VBox>
+</mvc:View>
