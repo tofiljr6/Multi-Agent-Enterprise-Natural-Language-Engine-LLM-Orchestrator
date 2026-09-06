@@ -1,68 +1,69 @@
-# SAP OData Tool Repository (system SA1, klient 300)
+# SAP OData Tool Repository (system SA1, client 300)
 
-Serwis OData na systemie SAP `SA1_300` sluzacy do przechowywania i udostepniania
-dynamicznie definiowanych narzedzi (tools) OData.
+An OData service on the SAP system `SA1_300` used to store and expose
+dynamically defined OData tools.
 
-Serwis pelni role **repozytorium narzedzi dla agentow AI**. Definicje narzedzi
-sa generowane z `$metadata` serwisow OData (np. `API_BUSINESS_PARTNER`),
-zapisywane w SAP, a nastepnie ladowane dynamicznie przez agenta w runtime.
+The service acts as a **tool repository for AI agents**. Tool definitions
+are generated from the `$metadata` of OData services (e.g.
+`API_BUSINESS_PARTNER`), stored in SAP, and then loaded dynamically by the
+agent at runtime.
 
-## Podstawowe dane
+## Basics
 
 | | |
 |---|---|
-| System / klient | `SA1`, mandant `300` |
-| Destination BTP | `SA1_300` |
-| Sciezka serwisu | `/sap/opu/odata/sap/<Z..._SRV>` - **uzupelnij w `.env` jako `TOOL_REPO_SERVICE_PATH`** |
-| Protokol | OData V2 (SAP Gateway) |
+| System / client | `SA1`, client `300` |
+| BTP destination | `SA1_300` |
+| Service path | `/sap/opu/odata/sap/<Z..._SRV>` - **fill in `.env` as `TOOL_REPO_SERVICE_PATH`** |
+| Protocol | OData V2 (SAP Gateway) |
 | Format | JSON (`Accept: application/json`) |
-| Modyfikacje | wymagaja tokenu CSRF |
+| Modifications | require a CSRF token |
 
-## Model danych
+## Data model
 
 ### Tool
 
-Glowna definicja narzedzia OData.
+The main OData tool definition.
 
-| Pole | Opis |
+| Field | Description |
 |---|---|
-| `ToolId` | Unikalny identyfikator narzedzia (**nadawany przez backend**, nie wysylaj) |
-| `ToolName` | Nazwa wystawiana agentowi AI |
-| `ToolDesc` | Opis narzedzia |
-| `ServiceName` | Serwis SAP OData, np. `API_BUSINESS_PARTNER` |
-| `EntitySet` | EntitySet OData |
-| `HTTPMethod` | Metoda HTTP, np. `GET` |
-| `NavigationProp` | Opcjonalna navigation property |
-| `SelectFields` | Pola uzywane w `$select` |
-| `FilterTemplate` | Opcjonalny szablon filtra OData |
-| `Active` | Czy narzedzie jest dostepne (`X` = aktywne) |
+| `ToolId` | Unique tool identifier (**assigned by the backend**, don't send it) |
+| `ToolName` | Name exposed to the AI agent |
+| `ToolDesc` | Tool description |
+| `ServiceName` | SAP OData service, e.g. `API_BUSINESS_PARTNER` |
+| `EntitySet` | OData EntitySet |
+| `HTTPMethod` | HTTP method, e.g. `GET` |
+| `NavigationProp` | Optional navigation property |
+| `SelectFields` | Fields used in `$select` |
+| `FilterTemplate` | Optional OData filter template |
+| `Active` | Whether the tool is available (`X` = active) |
 
-Tabela SAP: `ZXXXX_OD_TOOL`
+SAP table: `ZXXXX_OD_TOOL`
 
 ### ToolParameter
 
-Definiuje parametry wejsciowe wymagane przez narzedzie.
+Defines the input parameters required by a tool.
 
-| Pole | Opis |
+| Field | Description |
 |---|---|
-| `ToolId` | Referencja do Tool (wypelniana przez backend przy deep insert) |
-| `ParamName` | Nazwa parametru wystawiana agentowi |
-| `ParamDesc` | Opis parametru |
-| `ParamType` | Typ parametru |
-| `ODataProperty` | Odpowiadajaca property OData |
-| `ParamUsage` | Zastosowanie, np. `KEY`, `FILTER` |
-| `IsRequired` | Czy parametr jest wymagany (`X` = tak) |
-| `Pos` | Pozycja parametru |
-| `DefaultValue` | Opcjonalna wartosc domyslna |
+| `ToolId` | Reference to the Tool (filled in by the backend on deep insert) |
+| `ParamName` | Parameter name exposed to the agent |
+| `ParamDesc` | Parameter description |
+| `ParamType` | Parameter type |
+| `ODataProperty` | Corresponding OData property |
+| `ParamUsage` | Usage, e.g. `KEY`, `FILTER` |
+| `IsRequired` | Whether the parameter is required (`X` = yes) |
+| `Pos` | Parameter position |
+| `DefaultValue` | Optional default value |
 
-Tabela SAP: `ZXXXX_OD_TOOL_P`
+SAP table: `ZXXXX_OD_TOOL_P`
 
-Relacja: Tool `1:N` ToolParameter
+Relationship: Tool `1:N` ToolParameter
 Navigation property: `to_Parameters`
 
-## Tworzenie narzedzia
+## Creating a tool
 
-Narzedzia i ich parametry tworzy sie jednym **deep insertem** OData.
+A tool and its parameters are created with a single OData **deep insert**.
 
 ```
 POST /ToolSet
@@ -97,44 +98,45 @@ x-csrf-token: <token>
 }
 ```
 
-`ToolId` jest generowany automatycznie przez backend SAP i przypisywany do
-narzedzia oraz wszystkich powiazanych parametrow.
+`ToolId` is generated automatically by the SAP backend and assigned to the
+tool and all of its parameters.
 
-### Token CSRF
+### CSRF token
 
-OData V2 wymaga tokenu CSRF do kazdej operacji modyfikujacej:
+OData V2 requires a CSRF token for every modifying operation:
 
 ```
 GET /sap/opu/odata/sap/<Z..._SRV>/     x-csrf-token: Fetch
-   -> odpowiedz: naglowek x-csrf-token + ciasteczka sesji
-POST /ToolSet                          x-csrf-token: <token>  + te same ciasteczka
+   -> response: x-csrf-token header + session cookies
+POST /ToolSet                          x-csrf-token: <token>  + the same cookies
 ```
 
-Bez tego SAP zwroci `403 CSRF token validation failed`.
-W pipeline zalatwia to `scripts/post-tools.mjs`: Cloud SDK robi to sam
-(`fetchCsrfToken: true`), a fallback pobiera token recznie.
+Without this SAP returns `403 CSRF token validation failed`.
+In the pipeline this is handled by `scripts/post-tools.mjs`: Cloud SDK does
+it itself (`fetchCsrfToken: true`), and the fallback fetches the token by
+hand.
 
-## Odczyt narzedzi
+## Reading tools
 
-Wszystkie narzedzia:
+All tools:
 
 ```
 GET /ToolSet
 ```
 
-Narzedzia razem z parametrami (to konsumuje agent):
+Tools together with their parameters (this is what the agent consumes):
 
 ```
 GET /ToolSet?$expand=to_Parameters
 ```
 
-Same parametry:
+Just the parameters:
 
 ```
 GET /ToolParameterSet
 ```
 
-Przydatne warianty:
+Useful variants:
 
 ```
 GET /ToolSet?$filter=Active eq 'X'&$expand=to_Parameters
@@ -142,42 +144,48 @@ GET /ToolSet?$filter=ServiceName eq 'API_BUSINESS_PARTNER'
 GET /ToolSet('<ToolId>')?$expand=to_Parameters
 ```
 
-Odpowiedz OData V2:
+OData V2 response shape:
 
 ```json
 { "d": { "results": [ { "ToolId": "...", "to_Parameters": { "results": [ ... ] } } ] } }
 ```
 
-## Semantyka pol przy wywolaniu narzedzia
+## Field semantics when invoking a tool
 
-Agent, majac rekord Tool + jego ToolParameter, sklada wywolanie OData tak:
+Given a Tool record plus its ToolParameters, the agent builds the OData call
+like this:
 
-| Sytuacja | Efekt |
+| Situation | Effect |
 |---|---|
-| `ParamUsage = KEY`, brak `NavigationProp` | `/{EntitySet}('{wartosc}')?$select={SelectFields}` |
-| `ParamUsage = KEY`, jest `NavigationProp` | `/{EntitySet}('{wartosc}')/{NavigationProp}?$select={SelectFields}` |
-| klucz zlozony (wiele `KEY`) | `/{EntitySet}(Key1='a',Key2='b')` - kolejnosc wg `Pos` |
-| `ParamUsage = FILTER` | wartosci wstawiane w `FilterTemplate` lub sklejane w `$filter` |
-| `IsRequired = X` | agent musi miec wartosc, inaczej nie wola narzedzia |
-| `Active <> 'X'` | narzedzie pomijane przy ladowaniu |
+| `ParamUsage = KEY`, no `NavigationProp` | `/{EntitySet}('{value}')?$select={SelectFields}` |
+| `ParamUsage = KEY`, has `NavigationProp` | `/{EntitySet}('{value}')/{NavigationProp}?$select={SelectFields}` |
+| composite key (multiple `KEY`) | `/{EntitySet}(Key1='a',Key2='b')` - ordered by `Pos` |
+| `ParamUsage = FILTER` | values are inserted into `FilterTemplate` or assembled into `$filter` |
+| `IsRequired = X` | the agent must have a value, otherwise it won't call the tool |
+| `Active <> 'X'` | the tool is skipped when loading |
 
-`FilterTemplate` generowany przez pipeline uzywa placeholderow `{paramName}`,
-np. `BusinessPartnerCategory eq '{businessPartnerCategory}'`.
+`FilterTemplate` generated by the pipeline uses `{paramName}` placeholders,
+e.g. `BusinessPartnerCategory eq '{businessPartnerCategory}'`.
 
-## Limity dlugosci pol
+Note: `AgentService`'s runtime executor (`srv/lib/toolExecutor.js`)
+deliberately does **not** apply `$select` when calling SAP - see
+[agent-service.md](agent-service.md) for why. `SelectFields` is still kept
+in the data model for documentation/agent-generation purposes.
 
-Wartosci sa obcinane po stronie skryptu do limitow z `.env`
-(`LIMIT_TOOL_NAME`, `LIMIT_SELECT_FIELDS`, ...). Domyslne wartosci sa
-**zgadywane** - ustaw je zgodnie z faktycznymi dlugosciami w DDIC
-(`ZXXXX_OD_TOOL`, `ZXXXX_OD_TOOL_P`), inaczej SAP odrzuci zbyt dlugie wartosci
-albo je utnie po cichu.
+## Field length limits
 
-## Typowe bledy
+Values are truncated on the script side to the limits from `.env`
+(`LIMIT_TOOL_NAME`, `LIMIT_SELECT_FIELDS`, ...). The defaults are
+**guesses** - set them to match the actual lengths in DDIC
+(`ZXXXX_OD_TOOL`, `ZXXXX_OD_TOOL_P`), otherwise SAP will either reject
+values that are too long or silently truncate them.
 
-| HTTP | Komunikat | Przyczyna |
+## Common errors
+
+| HTTP | Message | Cause |
 |---|---|---|
-| 403 | `CSRF token validation failed` | brak / wygasly token albo brak ciasteczek sesji |
-| 400 | `Property 'X' is not valid` | nazwa pola w payloadzie nie zgadza sie z modelem serwisu |
-| 400 | deep insert odrzucony | `to_Parameters` nie jest obslugiwane w `CREATE_DEEP_ENTITY` w backendzie |
-| 404 | - | zla `TOOL_REPO_SERVICE_PATH` albo serwis nieaktywowany w `/IWFND/MAINT_SERVICE` |
-| 500 | `Duplicate key` | narzedzie o tej nazwie juz istnieje (uzyj innej `ToolName`) |
+| 403 | `CSRF token validation failed` | missing/expired token, or missing session cookies |
+| 400 | `Property 'X' is not valid` | a field name in the payload doesn't match the service's model |
+| 400 | deep insert rejected | `to_Parameters` isn't supported by `CREATE_DEEP_ENTITY` in the backend |
+| 404 | - | wrong `TOOL_REPO_SERVICE_PATH`, or the service isn't activated in `/IWFND/MAINT_SERVICE` |
+| 500 | `Duplicate key` | a tool with this name already exists (use a different `ToolName`) |
