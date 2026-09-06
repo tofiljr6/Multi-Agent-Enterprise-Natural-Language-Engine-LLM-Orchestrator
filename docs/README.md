@@ -6,6 +6,7 @@
 | [destination-sa1-300.md](destination-sa1-300.md) | Jak skrypty lacza sie z SA1_300 (Cloud SDK i fallback), konfiguracja BTP i lokalna |
 | [scripts.md](scripts.md) | Pipeline `$metadata` -> `tools.json` -> `POST /ToolSet` |
 | [metadata-to-tool-mapping.md](metadata-to-tool-mapping.md) | Reguly mapowania EDMX na Tool i ToolParameter |
+| [agent-service.md](agent-service.md) | `AgentService.ask` - LangChain agent, ktory dynamicznie binduje narzedzia z SA1_300 |
 
 ## Co to jest
 
