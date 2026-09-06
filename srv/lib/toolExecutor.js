@@ -27,8 +27,14 @@ function buildRequest(tool, args) {
 
     if (tool.NavigationProp) url += `/${tool.NavigationProp}`;
 
+    // Celowo NIE stosujemy tool.SelectFields: to pole jest dobierane
+    // heurystycznie przy generowaniu narzedzia (toolgen.mjs) i potrafi
+    // pominac dokladnie te kolumny, o ktore pyta uzytkownik (np. StreetName/
+    // CityName dla adresu). $select w OData obcina odpowiedz na twardo -
+    // zle dobrane SelectFields to milczaca utrata danych, ktorej model nie
+    // moze juz naprawic po fakcie. Pelny rekord jest tansze niz zla
+    // odpowiedz.
     const params = { $format: 'json' };
-    if (tool.SelectFields) params.$select = tool.SelectFields;
 
     if (filterParams.length > 0) {
         let filter;
