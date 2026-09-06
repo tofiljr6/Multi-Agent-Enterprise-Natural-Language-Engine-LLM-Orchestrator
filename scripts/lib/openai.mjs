@@ -6,11 +6,23 @@
 const ENDPOINT = 'https://api.openai.com/v1/chat/completions';
 
 const SYSTEM_PROMPT =
-  'Jestes ekspertem SAP OData, ktory pisze krotkie, precyzyjne opisy narzedzi ' +
-  '(tools) dla agentow AI. Opisy sa po angielsku, rzeczowe, bez marketingowego ' +
-  'jezyka, max 1-2 zdania na ToolDesc i pol zdania na ParamDesc. Odpowiadaj ' +
-  'WYLACZNIE poprawnym JSON-em w formacie ' +
-  '{"ToolDesc": "...", "params": {"<ParamName>": "..."}}, bez dodatkowego tekstu.';
+  'Jestes ekspertem od projektowania narzedzi (tools) dla agentow AI. Dostajesz ' +
+  'techniczny kontekst narzedzia zaczerpniety z SAP OData $metadata (nazwa ' +
+  'serwisu, EntitySet, metoda HTTP, pola) - to jest TYLKO zrodlo wiedzy o tym, ' +
+  'co narzedzie robi, a NIE tresc, ktora ma sie znalezc w opisie.\n\n' +
+  'ToolDesc ma sie skupiac wylacznie na funkcji biznesowej: jaka akcje ' +
+  'wykonuje i jakie dane zwraca, z punktu widzenia agenta, ktory decyduje, ' +
+  'kiedy uzyc tego narzedzia - nie na tym, skad technicznie te dane pochodza. ' +
+  'NIGDY nie wspominaj w ToolDesc ani w ParamDesc nazwy serwisu OData, slowa ' +
+  '"OData"/"API", nazwy EntitySet ani metody HTTP - to szum, nie informacja. ' +
+  'Pisz tak, jakby narzedzie moglo byc podpiete pod dowolne zrodlo danych.\n\n' +
+  'Zle:  "Retrieves business partner details from the API_BUSINESS_PARTNER OData service."\n' +
+  'Dobrze: "Retrieves core details of a business partner, such as name and category."\n\n' +
+  'Opisy sa po angielsku, rzeczowe, bez marketingowego jezyka, max 1-2 zdania ' +
+  'na ToolDesc i pol zdania na ParamDesc (co dany parametr reprezentuje ' +
+  'biznesowo, nie jego typ danych). Odpowiadaj WYLACZNIE poprawnym JSON-em w ' +
+  'formacie {"ToolDesc": "...", "params": {"<ParamName>": "..."}}, bez ' +
+  'dodatkowego tekstu.';
 
 function buildUserPrompt(tool) {
   const paramLines = tool.to_Parameters
@@ -18,6 +30,7 @@ function buildUserPrompt(tool) {
     .join('\n');
 
   return [
+    '(Ponizszy kontekst to wewnetrzne zrodlo wiedzy - nie cytuj go w opisach.)',
     `ToolName: ${tool.ToolName}`,
     `SAP OData service: ${tool.ServiceName}`,
     `EntitySet: ${tool.EntitySet}${tool.NavigationProp ? ` (navigation: ${tool.NavigationProp})` : ''}`,
@@ -26,7 +39,9 @@ function buildUserPrompt(tool) {
     'Parameters:',
     paramLines || '  (brak)',
     '',
-    'Napisz ToolDesc dla calego narzedzia oraz ParamDesc dla kazdego parametru z listy powyzej.',
+    'Napisz ToolDesc opisujacy funkcje biznesowa narzedzia oraz ParamDesc dla ' +
+      'kazdego parametru z listy powyzej - oba bez zadnych technicznych ' +
+      'odniesien do OData/serwisu/EntitySet/HTTP.',
   ].filter(Boolean).join('\n');
 }
 
