@@ -1,6 +1,7 @@
-// Minimalny parser EDMX (OData V2) - bez zaleznosci.
-// Wyciaga to, czego potrzebuje generator narzedzi: EntitySety, EntityType (klucze,
-// property, navigation property) oraz Association do rozwiazania celu nawigacji.
+// Minimal EDMX (OData V2) parser - no dependencies.
+// Extracts what the tool generator needs: EntitySets, EntityTypes (keys,
+// properties, navigation properties), and Associations to resolve
+// navigation targets.
 
 const ATTR_RE = /([\w:.-]+)\s*=\s*"([^"]*)"/g;
 
@@ -18,7 +19,7 @@ const local = (qualified = '') => qualified.split('.').pop();
 export function parseEdmx(xml) {
   const namespace = /<(?:\w+:)?Schema\b[^>]*\bNamespace="([^"]+)"/.exec(xml)?.[1] ?? '';
 
-  // --- Association: nazwa -> { role: {type, multiplicity} } ---------------
+  // --- Association: name -> { role: {type, multiplicity} } ---------------
   const associations = new Map();
   const assocRe = /<(?:\w+:)?Association\b([^>]*)>([\s\S]*?)<\/(?:\w+:)?Association>/g;
   for (const m of xml.matchAll(assocRe)) {

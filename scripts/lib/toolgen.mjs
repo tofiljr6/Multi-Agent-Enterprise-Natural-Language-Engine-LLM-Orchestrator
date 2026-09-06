@@ -1,4 +1,4 @@
-// Mapowanie $metadata OData -> payloady Tool + ToolParameter (deep insert do /ToolSet).
+// Mapping from OData $metadata to Tool + ToolParameter payloads (deep insert into /ToolSet).
 
 const EDM_TO_PARAM_TYPE = {
   'Edm.String': 'STRING', 'Edm.Guid': 'STRING', 'Edm.Binary': 'STRING',
@@ -10,7 +10,7 @@ const EDM_TO_PARAM_TYPE = {
 
 export const paramType = (edm) => EDM_TO_PARAM_TYPE[edm] ?? 'STRING';
 
-/** BusinessPartnerAddress -> business_partner_address ; A_/to_ sa obcinane wyzej */
+/** BusinessPartnerAddress -> business_partner_address ; A_/to_ are stripped upstream */
 export function snake(name) {
   return name
     .replace(/([a-z0-9])([A-Z])/g, '$1_$2')
@@ -21,7 +21,7 @@ export function snake(name) {
     .toLowerCase();
 }
 
-/** BusinessPartnerAddress -> businessPartnerAddress (nazwa parametru dla agenta) */
+/** BusinessPartnerAddress -> businessPartnerAddress (parameter name exposed to the agent) */
 export function camel(name) {
   const s = snake(name);
   return s.replace(/_([a-z0-9])/g, (_, c) => c.toUpperCase());
@@ -30,7 +30,7 @@ export function camel(name) {
 const stripPrefix = (n) => n.replace(/^A_/, '').replace(/^to_/, '').replace(/Type$/, '');
 const cut = (s, max) => (s.length <= max ? s : s.slice(0, max));
 
-/** Przycina nazwe narzedzia na granicy '_', zeby nie ucinac slow w polowie. */
+/** Truncates a tool name at an '_' boundary, so words aren't cut in half. */
 function cutName(s, max) {
   if (s.length <= max) return s;
   const hard = s.slice(0, max);
@@ -39,8 +39,8 @@ function cutName(s, max) {
 }
 
 /**
- * to_BusinessPartnerAddress na A_BusinessPartner -> "address" (nie "business_partner_address"),
- * dzieki czemu nazwa narzedzia to get_business_partner_address, a nie ...partner_business_partner_...
+ * to_BusinessPartnerAddress on A_BusinessPartner -> "address" (not "business_partner_address"),
+ * so the tool name becomes get_business_partner_address, not ...partner_business_partner_...
  */
 function navSuffix(navName, entityBase) {
   const nav = snake(stripPrefix(navName));
@@ -54,7 +54,7 @@ function label(entity, fallbackName) {
   return entity?.label?.trim() || humanize(fallbackName);
 }
 
-/** Buduje liste parametrow z propertiesow. */
+/** Builds a parameter list from properties. */
 function buildParams(props, usage, startPos = 1) {
   return props.map((p, i) => ({
     ParamName: camel(p.name),
@@ -68,14 +68,14 @@ function buildParams(props, usage, startPos = 1) {
   }));
 }
 
-/** Wybiera pola do $select: klucze + najbardziej "opisowe" property. */
+/** Picks the fields for $select: keys plus the most "descriptive" properties. */
 function selectFields(type, max) {
   if (!type) return '';
   const keys = type.properties.filter((p) => p.isKey);
   const rest = type.properties
     .filter((p) => !p.isKey)
     .sort((a, b) => {
-      // preferuj krotkie stringi z labelem (nazwy, miasta, kody) przed technicznymi
+      // favor short labeled strings (names, cities, codes) over technical ones
       const score = (p) => (p.label ? 0 : 1) + (p.type === 'Edm.String' ? 0 : 1) +
         ((p.maxLength ?? 999) > 60 ? 1 : 0) + (/^(Creat|Last|Change|Authorization)/.test(p.name) ? 2 : 0);
       return score(a) - score(b);
@@ -93,7 +93,7 @@ function filterTemplate(params, style, max) {
 }
 
 /**
- * @returns {Array<object>} payloady gotowe do POST /ToolSet
+ * @returns {Array<object>} payloads ready for POST /ToolSet
  */
 export function generateTools(model, cfg, entitySetNames) {
   const { limits, generate, source } = cfg;
@@ -123,15 +123,15 @@ export function generateTools(model, cfg, entitySetNames) {
 
   for (const setName of entitySetNames) {
     const set = model.entitySets.find((s) => s.name === setName);
-    if (!set) { console.warn(`  ! pomijam ${setName} - brak takiego EntitySet w $metadata`); continue; }
+    if (!set) { console.warn(`  ! skipping ${setName} - no such EntitySet in $metadata`); continue; }
     const type = model.entityTypes.get(set.entityType);
-    if (!type) { console.warn(`  ! pomijam ${setName} - brak EntityType ${set.entityType}`); continue; }
+    if (!type) { console.warn(`  ! skipping ${setName} - missing EntityType ${set.entityType}`); continue; }
 
     const base = snake(stripPrefix(set.name));
     const keyProps = type.keys.map((k) => type.properties.find((p) => p.name === k)).filter(Boolean);
     const entityLabel = label(set, set.name) || label(type, type.name);
 
-    // 1) odczyt po kluczu
+    // 1) read by key
     if (generate.readByKey && keyProps.length > 0) {
       push({
         ToolName: `get_${base}`,
@@ -147,7 +147,7 @@ export function generateTools(model, cfg, entitySetNames) {
       });
     }
 
-    // 2) lista z filtrami
+    // 2) list with filters
     if (generate.list) {
       const filterProps = type.properties
         .filter((p) => p.filterable && !p.isKey && !/^(Creat|Last|Change)/.test(p.name))
@@ -169,7 +169,7 @@ export function generateTools(model, cfg, entitySetNames) {
       }
     }
 
-    // 3) nawigacje
+    // 3) navigations
     if (generate.navigation && keyProps.length > 0) {
       for (const nav of type.navigation) {
         const target = model.entityTypes.get(nav.targetType);

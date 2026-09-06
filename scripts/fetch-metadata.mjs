@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Krok 1: pobiera $metadata z API_BUSINESS_PARTNER przez destination SA1_300.
+// Step 1: fetches $metadata from API_BUSINESS_PARTNER through the SA1_300 destination.
 import fs from 'node:fs';
 import path from 'node:path';
 import { config } from './config.mjs';
@@ -20,4 +20,4 @@ if (res.status < 200 || res.status >= 300) {
 
 fs.mkdirSync(path.dirname(config.paths.metadata), { recursive: true });
 fs.writeFileSync(config.paths.metadata, res.body, 'utf8');
-console.log(`zapisano    : ${path.relative(process.cwd(), config.paths.metadata)} (${(res.body.length / 1024).toFixed(0)} KB)`);
+console.log(`saved       : ${path.relative(process.cwd(), config.paths.metadata)} (${(res.body.length / 1024).toFixed(0)} KB)`);

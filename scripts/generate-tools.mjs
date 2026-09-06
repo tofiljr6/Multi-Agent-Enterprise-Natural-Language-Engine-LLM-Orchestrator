@@ -1,9 +1,9 @@
 #!/usr/bin/env node
-// Krok 2: $metadata -> out/tools.json (payloady deep-insert). Nic nie wysyla.
-//   node scripts/generate-tools.mjs                 # zakres z config.entitySets
-//   node scripts/generate-tools.mjs --all           # wszystkie EntitySety
+// Step 2: $metadata -> out/tools.json (deep-insert payloads). Sends nothing.
+//   node scripts/generate-tools.mjs                 # scope from config.entitySets
+//   node scripts/generate-tools.mjs --all           # all EntitySets
 //   node scripts/generate-tools.mjs A_BusinessPartner A_Customer
-//   node scripts/generate-tools.mjs --no-openai      # wymus szablonowe opisy, nawet gdy USE_OPENAI_DESCRIPTIONS=true
+//   node scripts/generate-tools.mjs --no-openai      # force template descriptions, even if USE_OPENAI_DESCRIPTIONS=true
 import fs from 'node:fs';
 import path from 'node:path';
 import { config } from './config.mjs';
@@ -12,7 +12,7 @@ import { generateTools } from './lib/toolgen.mjs';
 import { enrichWithOpenAI } from './lib/openai.mjs';
 
 if (!fs.existsSync(config.paths.metadata)) {
-  console.error(`Brak ${config.paths.metadata}. Uruchom najpierw: node scripts/fetch-metadata.mjs`);
+  console.error(`Missing ${config.paths.metadata}. Run this first: node scripts/fetch-metadata.mjs`);
   process.exit(1);
 }
 
@@ -28,34 +28,35 @@ console.log(`entity sets : ${model.entitySets.length}, entity types: ${model.ent
 const scope = all
   ? model.entitySets.filter((s) => s.addressable).map((s) => s.name)
   : (explicit.length ? explicit : config.entitySets);
-console.log(`zakres      : ${scope.length} entity set(s)${all ? ' (--all)' : ''}`);
+console.log(`scope       : ${scope.length} entity set(s)${all ? ' (--all)' : ''}`);
 
 let tools = generateTools(model, config, scope);
 
-// Opisy (ToolDesc/ParamDesc): domyslnie szablon z toolgen.mjs (offline, deterministyczny).
-// Z USE_OPENAI_DESCRIPTIONS=true w .env (i bez --no-openai) sa nadpisywane opisami
-// z OpenAI, wygenerowanymi z tego samego kontekstu $metadata - wciaz offline
-// wobec SAP, nic nie jest jeszcze POST-owane.
+// Descriptions (ToolDesc/ParamDesc): template from toolgen.mjs by default
+// (offline, deterministic). With USE_OPENAI_DESCRIPTIONS=true in .env (and
+// without --no-openai) they're overwritten with descriptions from OpenAI,
+// generated from the same $metadata context - still offline with respect
+// to SAP, nothing is POSTed yet.
 if (config.openai.enabled && !noOpenai) {
   if (!config.openai.apiKey) {
-    console.error('USE_OPENAI_DESCRIPTIONS=true, ale brak OPENAI_API_KEY w .env. Pomijam wzbogacanie opisow.');
+    console.error('USE_OPENAI_DESCRIPTIONS=true, but OPENAI_API_KEY is missing from .env. Skipping description enrichment.');
   } else {
-    console.log(`\nopisy       : OpenAI (${config.openai.model}), ${tools.length} narzedzi`);
+    console.log(`\ndescriptions: OpenAI (${config.openai.model}), ${tools.length} tool(s)`);
     tools = await enrichWithOpenAI(tools, config.openai, config.limits);
   }
 } else {
-  console.log('\nopisy       : szablonowe (offline) - ustaw USE_OPENAI_DESCRIPTIONS=true w .env, zeby uzyc OpenAI');
+  console.log('\ndescriptions: template (offline) - set USE_OPENAI_DESCRIPTIONS=true in .env to use OpenAI');
 }
 
 fs.mkdirSync(path.dirname(config.paths.tools), { recursive: true });
 fs.writeFileSync(config.paths.tools, JSON.stringify(tools, null, 2), 'utf8');
 
 const params = tools.reduce((n, t) => n + t.to_Parameters.length, 0);
-console.log(`\nwygenerowano: ${tools.length} narzedzi, ${params} parametrow`);
-console.log(`zapisano    : ${path.relative(process.cwd(), config.paths.tools)}`);
-console.log('\npodglad:');
+console.log(`\ngenerated   : ${tools.length} tool(s), ${params} parameter(s)`);
+console.log(`saved       : ${path.relative(process.cwd(), config.paths.tools)}`);
+console.log('\npreview:');
 for (const t of tools.slice(0, 10)) {
   console.log(`  ${t.ToolName.padEnd(42)} ${t.EntitySet}${t.NavigationProp ? '/' + t.NavigationProp : ''} (${t.to_Parameters.length}p)`);
 }
-if (tools.length > 10) console.log(`  ... +${tools.length - 10}`);
-console.log(`\nprzejrzyj plik, a nastepnie wyslij: node scripts/post-tools.mjs --dry-run`);
+if (tools.length > 10) console.log(`  ... +${tools.length - 10} more`);
+console.log(`\nreview the file, then send it: node scripts/post-tools.mjs --dry-run`);

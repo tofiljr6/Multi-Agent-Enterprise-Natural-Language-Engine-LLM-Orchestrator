@@ -1,16 +1,16 @@
-// Warstwa transportu do systemu SAP przez destination.
+// Transport layer to the SAP system through a destination.
 //
-// Dwie implementacje, wybierane automatycznie:
-//   1) SAP Cloud SDK  - gdy sa zainstalowane @sap-cloud-sdk/connectivity + /http-client.
-//      Ten sam wzorzec co w projekcie business-partner-ai (srv/lib/bpClient.js):
+// Two implementations, chosen automatically:
+//   1) SAP Cloud SDK - when @sap-cloud-sdk/connectivity + /http-client are installed.
+//      Same pattern as in the business-partner-ai project (srv/lib/bpClient.js):
 //         const destination = await getDestination({ destinationName: 'SA1_300' })
 //         await executeHttpRequest(destination, { method, url, params })
-//      Cloud SDK sam ogarnia XSUAA, connectivity proxy (OnPremise), principal propagation
-//      oraz lokalna zmienna `destinations=[{...}]`.
-//   2) Fallback wbudowany - zero zaleznosci (node:http + wlasny lookup destination).
-//      Dziala bez npm install; obsluguje VCAP_SERVICES, `destinations` i SA1_URL.
+//      Cloud SDK handles XSUAA, the connectivity proxy (OnPremise), principal
+//      propagation, and the local `destinations=[{...}]` variable, all by itself.
+//   2) Built-in fallback - zero dependencies (node:http + its own destination lookup).
+//      Works without npm install; supports VCAP_SERVICES, `destinations`, and SA1_URL.
 //
-// Wymus konkretna implementacje: TRANSPORT=cloud-sdk | builtin
+// Force a specific implementation: TRANSPORT=cloud-sdk | builtin
 import { resolveDestination } from './destination.mjs';
 import { request, ensureOk, cookieHeader } from './http.mjs';
 
@@ -24,7 +24,7 @@ async function tryLoadCloudSdk() {
     return { getDestination: connectivity.getDestination, executeHttpRequest: httpClient.executeHttpRequest };
   } catch {
     if (process.env.TRANSPORT === 'cloud-sdk') {
-      throw new Error('TRANSPORT=cloud-sdk, ale brak @sap-cloud-sdk/connectivity i @sap-cloud-sdk/http-client.');
+      throw new Error('TRANSPORT=cloud-sdk, but @sap-cloud-sdk/connectivity and @sap-cloud-sdk/http-client are missing.');
     }
     return null;
   }
@@ -66,7 +66,7 @@ function builtinClient(destinationName) {
   let destination;
   const dest = async () => (destination ??= await resolveDestination(destinationName));
 
-  // stan CSRF wspoldzielony miedzy POST-ami
+  // CSRF state shared across POSTs
   let csrf = null;
   let cookie = '';
 
@@ -94,13 +94,13 @@ function builtinClient(destinationName) {
     },
     get: (url, opts) => call('GET', url, opts),
 
-    /** Pobiera token CSRF dla sciezki serwisu (OData V2 wymaga go do POST). */
+    /** Fetches a CSRF token for the service path (OData V2 requires it for POST). */
     async fetchCsrf(servicePath, params) {
       const res = await call('GET', `${servicePath}/`, {
         params,
         headers: { accept: 'application/json', 'x-csrf-token': 'Fetch' },
       });
-      ensureOk(res, 'Pobranie CSRF tokenu');
+      ensureOk(res, 'Fetching the CSRF token');
       csrf = res.headers['x-csrf-token'] ?? null;
       cookie = cookieHeader(res.cookies);
       return csrf;

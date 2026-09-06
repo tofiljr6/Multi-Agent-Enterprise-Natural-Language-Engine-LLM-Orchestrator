@@ -82,7 +82,7 @@ all parameters at once), still offline with respect to SAP - the result is
 still loaded into `out/tools.json` and reviewed before step 3. `--no-openai`
 forces the template even when `USE_OPENAI_DESCRIPTIONS=true` is set in
 `.env`. Tools for which the OpenAI request fails keep their template
-description (the log shows `POMINIETO (...)` / "skipped"), the rest of the
+description (the log shows `SKIPPED (...)`), the rest of the
 pipeline is not interrupted.
 
 ## Step 3 - send to the tool repository

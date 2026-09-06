@@ -1,9 +1,9 @@
-// Rozwiazywanie destination SA1_300.
+// Resolves the SA1_300 destination.
 //
-// Dwa tryby:
-//  1) BTP  - czyta VCAP_SERVICES, bierze token XSUAA i pyta Destination Service.
-//            Dla ProxyType=OnPremise dokłada connectivity proxy + Proxy-Authorization.
-//  2) LOKALNY - jesli ustawisz SA1_URL/SA1_USER/SA1_PASSWORD w .env, destination jest pomijane.
+// Two modes:
+//  1) BTP - reads VCAP_SERVICES, gets an XSUAA token and queries the Destination Service.
+//           For ProxyType=OnPremise it adds the connectivity proxy + Proxy-Authorization.
+//  2) LOCAL - if you set SA1_URL/SA1_USER/SA1_PASSWORD in .env, the destination service is bypassed.
 import { request, ensureOk, basicAuth } from './http.mjs';
 
 const stripSlash = (u) => u.replace(/\/+$/, '');
@@ -28,16 +28,16 @@ async function clientCredentialsToken({ clientid, clientsecret, url }) {
     },
     body: 'grant_type=client_credentials',
   });
-  ensureOk(res, `Token XSUAA (${url})`);
+  ensureOk(res, `XSUAA token (${url})`);
   return JSON.parse(res.body).access_token;
 }
 
 /**
- * @param {string} name np. "SA1_300"
+ * @param {string} name e.g. "SA1_300"
  * @returns {Promise<{name:string,url:string,headers:Record<string,string>,proxy?:string,source:string}>}
  */
 export async function resolveDestination(name, env = process.env) {
-  // --- tryb lokalny A: zmienna `destinations` w formacie SAP Cloud SDK ----
+  // --- local mode A: `destinations` variable in SAP Cloud SDK format -----
   // destinations=[{"name":"SA1_300","url":"https://host:44300","username":"USER","password":"PASS"}]
   if (env.destinations) {
     const list = JSON.parse(env.destinations);
@@ -49,7 +49,7 @@ export async function resolveDestination(name, env = process.env) {
     }
   }
 
-  // --- tryb lokalny B: bezposredni URL -----------------------------------
+  // --- local mode B: direct URL -------------------------------------------
   if (env.SA1_URL) {
     const headers = {};
     if (env.SA1_USER) headers.authorization = basicAuth(env.SA1_USER, env.SA1_PASSWORD ?? '');
@@ -62,14 +62,14 @@ export async function resolveDestination(name, env = process.env) {
     };
   }
 
-  // --- tryb BTP -----------------------------------------------------------
+  // --- BTP mode -------------------------------------------------------------
   const vcap = JSON.parse(env.VCAP_SERVICES ?? '{}');
   const destBinding = pickBinding(vcap, 'destination');
   if (!destBinding) {
     throw new Error(
-      `Nie udalo sie rozwiazac destination "${name}".\n` +
-      'Brak bindingu "destination" w VCAP_SERVICES, brak zmiennej `destinations` i brak SA1_URL.\n' +
-      'Uruchom w BTP z podpietym Destination Service albo skonfiguruj .env (patrz .env.example).'
+      `Could not resolve destination "${name}".\n` +
+      'No "destination" binding in VCAP_SERVICES, no `destinations` variable, and no SA1_URL.\n' +
+      'Run on BTP with the Destination Service bound, or configure .env (see .env.example).'
     );
   }
 
@@ -82,7 +82,7 @@ export async function resolveDestination(name, env = process.env) {
 
   const payload = JSON.parse(res.body);
   const cfg = payload.destinationConfiguration ?? {};
-  if (!cfg.URL) throw new Error(`Destination ${name} nie ma pola URL.`);
+  if (!cfg.URL) throw new Error(`Destination ${name} has no URL field.`);
 
   const headers = {};
   const token = payload.authTokens?.[0];
@@ -93,7 +93,7 @@ export async function resolveDestination(name, env = process.env) {
   if (cfg.ProxyType === 'OnPremise') {
     const connBinding = pickBinding(vcap, 'connectivity');
     if (!connBinding) {
-      throw new Error(`Destination ${name} ma ProxyType=OnPremise, ale brak bindingu "connectivity" w VCAP_SERVICES.`);
+      throw new Error(`Destination ${name} has ProxyType=OnPremise, but there's no "connectivity" binding in VCAP_SERVICES.`);
     }
     const c = connBinding.credentials;
     proxy = `http://${c.onpremise_proxy_host}:${c.onpremise_proxy_http_port ?? c.onpremise_proxy_port}`;

@@ -1,5 +1,5 @@
-// Zamienia katalog narzedzi z fetchToolCatalog() na narzedzia LangChain
-// (tool() z pakietu "langchain"), gotowe do zbindowania do agenta.
+// Turns the tool catalog from fetchToolCatalog() into LangChain tools
+// (tool() from the "langchain" package), ready to be bound to the agent.
 import { z } from 'zod';
 import { tool } from 'langchain';
 import { callSapTool } from './toolExecutor.js';
@@ -19,13 +19,13 @@ function buildSchema(toolDef) {
         const described = p.ParamDesc ? base.describe(p.ParamDesc) : base;
         shape[p.ParamName] = p.IsRequired === 'X' ? described : described.optional();
     }
-    // Zod V4 wymaga co najmniej jednego pola w schemacie akcji narzedzia -
-    // narzedzia bez parametrow dostaja niewykorzystywane pole techniczne.
+    // Zod V4 requires at least one field in a tool's action schema - tools
+    // with no parameters get an unused technical field.
     if (Object.keys(shape).length === 0) shape._ = z.string().optional();
     return z.object(shape);
 }
 
-/** @param {Array<object>} catalog wynik fetchToolCatalog() */
+/** @param {Array<object>} catalog result of fetchToolCatalog() */
 export function toLangChainTools(catalog) {
     return catalog.map((toolDef) =>
         tool(
@@ -35,7 +35,7 @@ export function toLangChainTools(catalog) {
                     return JSON.stringify(data);
                 } catch (err) {
                     const detail = err?.response?.data ?? err?.cause?.response?.data ?? err.message;
-                    return `ERROR: wywolanie narzedzia ${toolDef.ToolName} nie powiodlo sie: ${JSON.stringify(detail)}`;
+                    return `ERROR: calling tool ${toolDef.ToolName} failed: ${JSON.stringify(detail)}`;
                 }
             },
             {

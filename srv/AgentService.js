@@ -5,14 +5,14 @@ import { fetchToolCatalog } from './lib/toolCatalog.js';
 import { toLangChainTools } from './lib/agentTools.js';
 
 const SYSTEM_PROMPT =
-    'Jestes asystentem SAP. Masz dostep do zestawu narzedzi, ktore w danej ' +
-    'chwili sa zaladowane z repozytorium narzedzi w SAP - moga sie zmieniac ' +
-    'z uruchomienia na uruchomienie. Uzywaj ich, gdy potrzebujesz konkretnych ' +
-    'danych, zamiast zgadywac. Jesli zadne narzedzie nie pasuje do pytania, ' +
-    'powiedz to wprost zamiast wymyslac odpowiedz.';
+    'You are a SAP assistant. You have access to a set of tools that are ' +
+    'currently loaded from a tool repository in SAP - they may change from ' +
+    'one run to the next. Use them whenever you need concrete data instead ' +
+    'of guessing. If no tool fits the question, say so plainly instead of ' +
+    'making up an answer.';
 
-// Wysyla surowy JSON z jawnym Content-Type, zamiast pozwolic CAP-owi opakowac
-// wynik w koperte OData ({"value": "...string..."}).
+// Sends a plain JSON response with an explicit Content-Type, instead of
+// letting CAP wrap the result in an OData envelope ({"value": "...string..."}).
 function sendJson(req, status, data) {
     req._.res.status(status);
     req._.res.set('Content-Type', 'application/json');
@@ -24,12 +24,12 @@ export default cds.service.impl(function () {
     this.on('ask', async (req) => {
         const query = req.data.query?.trim();
         if (!query) {
-            req.error(400, 'Parametr "query" jest wymagany.');
+            req.error(400, 'The "query" parameter is required.');
             return;
         }
 
         if (!process.env.OPENAI_API_KEY) {
-            req.error(500, 'Brak OPENAI_API_KEY w konfiguracji (.env / env vars).');
+            req.error(500, 'Missing OPENAI_API_KEY in configuration (.env / env vars).');
             return;
         }
 
@@ -51,10 +51,10 @@ export default cds.service.impl(function () {
 
             const answer = result.messages.at(-1)?.content ?? '';
 
-            // Argumenty wywolania siedza w tool_calls poprzedzajacej AIMessage,
-            // dopasowane po id do ToolMessage.tool_call_id - trzeba je sparowac,
-            // zeby wiedziec nie tylko co odpowiedzialo narzedzie, ale i z czym
-            // zostalo wywolane.
+            // Call arguments live in the tool_calls of the preceding
+            // AIMessage, matched by id to ToolMessage.tool_call_id - they
+            // need to be paired up so we know not just what a tool
+            // responded, but also what it was called with.
             const argsByCallId = new Map();
             for (const m of result.messages) {
                 for (const tc of m.tool_calls ?? []) argsByCallId.set(tc.id, tc.args);

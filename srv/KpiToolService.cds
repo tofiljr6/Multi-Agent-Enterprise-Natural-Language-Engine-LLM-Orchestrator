@@ -12,17 +12,18 @@ type ToolParameterInput {
 service KpiToolService {
 
     /**
-     * Pobiera ToolSet (z rozwinieciem to_Parameters) z serwisu ZXXXX_KPI_SRV
-     * przez destination SA1_300. Endpoint jest wpisany na sztywno w
-     * KpiToolService.js - nie ma zadnej konfiguracji w .env.
+     * Fetches the ToolSet (with to_Parameters expanded) from the
+     * ZXXXX_KPI_SRV service through the SA1_300 destination. The endpoint
+     * is hardcoded in KpiToolService.js - there is no configuration in .env.
      */
     function getTools() returns LargeString;
 
     /**
-     * Tworzy Tool razem z jego to_Parameters jednym deep insertem
-     * (POST /ToolSet) w serwisie ZXXXX_KPI_SRV przez destination SA1_300.
-     * Parametry akcji odpowiadaja 1:1 polom z docs/sa1-tool-repository-api.md
-     * - body POST-a to zwykly plaski JSON, bez zadnego wrappera:
+     * Creates a Tool together with its to_Parameters in a single deep
+     * insert (POST /ToolSet) against the ZXXXX_KPI_SRV service through the
+     * SA1_300 destination. The action's parameters map 1:1 to the fields
+     * documented in docs/sa1-tool-repository-api.md - the POST body is a
+     * plain flat JSON object, with no wrapper:
      *
      *   { "ToolName": "...", "ToolDesc": "...", ..., "to_Parameters": [...] }
      */

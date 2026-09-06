@@ -1,10 +1,10 @@
 #!/usr/bin/env node
-// Wywoluje AgentService.ask (LangChain + narzedzia z SA1_300) zamiast recznego curl.
-//   node scripts/ask-agent.mjs "Podaj dane partnera biznesowego o numerze 1000000"
-//   node scripts/ask-agent.mjs --url https://twoja-app.cfapps.eu10.hana.ondemand.com/odata/v4/agent/ask "..."
+// Calls AgentService.ask (LangChain + tools from SA1_300) instead of a manual curl.
+//   node scripts/ask-agent.mjs "Give me the business partner with number 1000000"
+//   node scripts/ask-agent.mjs --url https://your-app.cfapps.eu10.hana.ondemand.com/odata/v4/agent/ask "..."
 //
-// Domyslny URL to lokalny `cds watch` (http://localhost:4004). Nadpisz go
-// flaga --url albo zmienna AGENT_SERVICE_URL w .env.
+// The default URL is a local `cds watch` (http://localhost:4004). Override it
+// with the --url flag or the AGENT_SERVICE_URL variable in .env.
 import { config } from './config.mjs';
 
 const args = process.argv.slice(2);
@@ -16,7 +16,7 @@ const url = urlIdx >= 0
 const query = args.filter((a, i) => a !== '--url' && i !== urlIdx + 1).join(' ').trim();
 
 if (!query) {
-  console.error('Uzycie: node scripts/ask-agent.mjs [--url <endpoint>] "<pytanie>"');
+  console.error('Usage: node scripts/ask-agent.mjs [--url <endpoint>] "<question>"');
   process.exit(1);
 }
 
@@ -44,19 +44,19 @@ if (!res.ok) {
 }
 
 if (body?.toolsAvailable) {
-  console.log(`narzedzia dostepne (${body.toolsAvailable.length}): ${body.toolsAvailable.join(', ')}\n`);
+  console.log(`tools available (${body.toolsAvailable.length}): ${body.toolsAvailable.join(', ')}\n`);
 }
 
 if (body?.toolCalls?.length) {
-  console.log(`wywolane narzedzia (${body.toolCalls.length}):`);
+  console.log(`tools called (${body.toolCalls.length}):`);
   for (const [i, c] of body.toolCalls.entries()) {
     console.log(`  [${i + 1}] ${c.tool}(${JSON.stringify(c.args ?? {})})`);
     console.log(`      -> ${c.output}`);
   }
   console.log();
 } else if (body) {
-  console.log('wywolane narzedzia: (zadne - model odpowiedzial bez uzycia narzedzia)\n');
+  console.log('tools called: (none - the model answered without using a tool)\n');
 }
 
-console.log('odpowiedz:');
+console.log('answer:');
 console.log(body?.answer ?? text);

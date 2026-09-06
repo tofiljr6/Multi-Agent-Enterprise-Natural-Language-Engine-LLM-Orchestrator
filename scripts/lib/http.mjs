@@ -1,5 +1,5 @@
-// Minimalny klient HTTP na wbudowanych modulach Node.
-// Obsluguje forward-proxy w formie absolute-URI (connectivity proxy BTP dla destination OnPremise).
+// Minimal HTTP client built on Node's own modules.
+// Supports a forward-proxy in absolute-URI form (BTP connectivity proxy for OnPremise destinations).
 import http from 'node:http';
 import https from 'node:https';
 
@@ -16,8 +16,8 @@ export function request(url, opts = {}) {
   if (proxy) {
     if (target.protocol === 'https:') {
       throw new Error(
-        `Cel ${target.origin} jest po HTTPS, a destination wymaga proxy. ` +
-        `Tunel CONNECT nie jest zaimplementowany - uzyj destination z URL http:// (typowe dla OnPremise/Cloud Connector).`
+        `Target ${target.origin} is over HTTPS, and the destination requires a proxy. ` +
+        `A CONNECT tunnel is not implemented - use a destination with an http:// URL (typical for OnPremise/Cloud Connector).`
       );
     }
     conn = new URL(proxy);
@@ -29,7 +29,7 @@ export function request(url, opts = {}) {
     hostname: conn.hostname,
     port: conn.port || (conn.protocol === 'https:' ? 443 : 80),
     method,
-    // przez proxy wysylamy pelny URL w linii zadania (absolute-form)
+    // through the proxy we send the full URL on the request line (absolute-form)
     path: proxy ? target.toString() : `${target.pathname}${target.search}`,
     headers: { host: target.host, ...headers },
   };
@@ -47,23 +47,23 @@ export function request(url, opts = {}) {
         });
       });
     });
-    req.setTimeout(timeout, () => req.destroy(new Error(`Timeout ${timeout} ms dla ${method} ${url}`)));
+    req.setTimeout(timeout, () => req.destroy(new Error(`Timeout of ${timeout} ms for ${method} ${url}`)));
     req.on('error', reject);
     if (body) req.write(body);
     req.end();
   });
 }
 
-/** Rzuca wyjatkiem, gdy status jest poza 2xx. */
+/** Throws when the status is outside 2xx. */
 export function ensureOk(res, what) {
   if (res.status < 200 || res.status >= 300) {
     const snippet = res.body.slice(0, 800);
-    throw new Error(`${what} zwrocilo HTTP ${res.status}\n${snippet}`);
+    throw new Error(`${what} returned HTTP ${res.status}\n${snippet}`);
   }
   return res;
 }
 
-/** Sklada naglowek Cookie z set-cookie odpowiedzi. */
+/** Builds a Cookie header from a response's set-cookie values. */
 export function cookieHeader(cookies) {
   return cookies.map((c) => c.split(';')[0]).join('; ');
 }

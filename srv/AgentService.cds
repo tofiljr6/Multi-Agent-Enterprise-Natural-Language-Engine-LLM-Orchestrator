@@ -1,11 +1,11 @@
 service AgentService {
 
     /**
-     * Odpowiada na pytanie uzytkownika przy pomocy LangChain + LLM.
-     * Przed odpowiedzia agent pobiera aktualny katalog narzedzi z
-     * repozytorium na SA1_300 (ten sam mechanizm co KpiToolService.getTools)
-     * i binduje je do modelu jako tool-calling, wiec model moze w trakcie
-     * odpowiedzi wywolac realne dane z SAP.
+     * Answers a user's question using LangChain + an LLM. Before
+     * answering, the agent fetches the current tool catalog from the
+     * repository on SA1_300 (the same mechanism as
+     * KpiToolService.getTools) and binds it to the model as tool-calling,
+     * so the model can pull real data from SAP while answering.
      */
     action ask(query: String) returns LargeString;
 

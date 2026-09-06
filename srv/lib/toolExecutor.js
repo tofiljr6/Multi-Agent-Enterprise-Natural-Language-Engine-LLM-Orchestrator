@@ -1,7 +1,8 @@
-// Wykonuje realne wywolanie OData na SA1_300 dla jednego Tool z repozytorium,
-// wg semantyki opisanej w docs/sa1-tool-repository-api.md ("Semantyka pol
-// przy wywolaniu narzedzia"): KEY -> segment klucza (+ NavigationProp),
-// FILTER -> $filter (z FilterTemplate albo sklejony recznie).
+// Performs the actual OData call against SA1_300 for one Tool from the
+// repository, following the semantics described in
+// docs/sa1-tool-repository-api.md ("Field semantics when invoking a
+// tool"): KEY -> key segment (+ NavigationProp), FILTER -> $filter (from
+// FilterTemplate, or assembled by hand).
 import { executeHttpRequest } from '@sap-cloud-sdk/http-client';
 import { getDestination } from '@sap-cloud-sdk/connectivity';
 import { DESTINATION_NAME } from './toolCatalog.js';
@@ -27,13 +28,13 @@ function buildRequest(tool, args) {
 
     if (tool.NavigationProp) url += `/${tool.NavigationProp}`;
 
-    // Celowo NIE stosujemy tool.SelectFields: to pole jest dobierane
-    // heurystycznie przy generowaniu narzedzia (toolgen.mjs) i potrafi
-    // pominac dokladnie te kolumny, o ktore pyta uzytkownik (np. StreetName/
-    // CityName dla adresu). $select w OData obcina odpowiedz na twardo -
-    // zle dobrane SelectFields to milczaca utrata danych, ktorej model nie
-    // moze juz naprawic po fakcie. Pelny rekord jest tansze niz zla
-    // odpowiedz.
+    // Deliberately NOT applying tool.SelectFields here: that field is
+    // picked heuristically when the tool is generated (toolgen.mjs) and
+    // can miss exactly the columns the user is asking about (e.g.
+    // StreetName/CityName for an address). $select in OData truncates the
+    // response server-side - a badly picked SelectFields is a silent loss
+    // of data that the model has no way to recover from afterwards. A full
+    // record is cheaper than a wrong answer.
     const params = { $format: 'json' };
 
     if (filterParams.length > 0) {
@@ -53,9 +54,9 @@ function buildRequest(tool, args) {
 }
 
 /**
- * @param {object} tool wpis z fetchToolCatalog()
- * @param {Record<string, string>} args argumenty od modelu, klucze = ParamName
- * @returns {Promise<unknown>} response.data z wywolania OData
+ * @param {object} tool an entry from fetchToolCatalog()
+ * @param {Record<string, string>} args arguments from the model, keyed by ParamName
+ * @returns {Promise<unknown>} response.data from the OData call
  */
 export async function callSapTool(tool, args) {
     const destination = await getDestination({ destinationName: DESTINATION_NAME });

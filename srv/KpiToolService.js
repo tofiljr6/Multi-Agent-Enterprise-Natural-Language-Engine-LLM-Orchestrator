@@ -2,16 +2,16 @@ import cds from '@sap/cds';
 import { executeHttpRequest } from '@sap-cloud-sdk/http-client';
 import { getDestination } from '@sap-cloud-sdk/connectivity';
 
-// Ten sam wzorzec co w projekcie business-partner-ai (srv/lib/bpClient.js /
-// BusinessPartnerAIService.js): destination + endpoint na sztywno w kodzie,
-// zero konfiguracji w .env.
+// Same pattern as in the business-partner-ai project (srv/lib/bpClient.js /
+// BusinessPartnerAIService.js): destination + endpoint hardcoded in the
+// code, zero configuration in .env.
 const DESTINATION_NAME = 'SA1_300';
 const TOOL_SET_BASE_URL = '/sap/opu/odata/sap/ZXXXX_KPI_SRV/ToolSet';
 const TOOL_SET_URL = `${TOOL_SET_BASE_URL}?$expand=to_Parameters`;
 
-// Wysyla surowy JSON z jawnym Content-Type, zamiast pozwolic CAP-owi opakowac
-// wynik w koperte OData ({"value": "...string..."}). Dzieki temu klient
-// (przegladarka, Postman) dostaje czysty, sformatowany JSON.
+// Sends a plain JSON response with an explicit Content-Type, instead of
+// letting CAP wrap the result in an OData envelope ({"value": "...string..."}).
+// This way the client (browser, Postman) gets clean, formatted JSON.
 function sendJson(req, status, data) {
     req._.res.status(status);
     req._.res.set('Content-Type', 'application/json');
@@ -47,12 +47,12 @@ export default cds.service.impl(function () {
         }
     });
 
-    // Deep insert: tworzy Tool razem z jego to_Parameters jednym POST-em.
-    // req.data to juz sparsowane body akcji - pola 1:1 jak w
-    // docs/sa1-tool-repository-api.md (ToolName, ToolDesc, ..., to_Parameters).
-    // OData V2 po stronie SAP wymaga tokenu CSRF do modyfikacji - Cloud SDK
-    // pobiera go sam (fetchCsrfToken: true), dokladnie tak jak robil to stary
-    // scripts/post-tools.mjs.
+    // Deep insert: creates a Tool together with its to_Parameters in a
+    // single POST. req.data is already the parsed action body - fields
+    // 1:1 as in docs/sa1-tool-repository-api.md (ToolName, ToolDesc, ...,
+    // to_Parameters). OData V2 on the SAP side requires a CSRF token for
+    // modifications - Cloud SDK fetches it itself (fetchCsrfToken: true),
+    // exactly like the old scripts/post-tools.mjs used to.
     this.on('createTool', async (req) => {
         const payload = req.data;
 
@@ -77,8 +77,9 @@ export default cds.service.impl(function () {
             console.error('CREATE TOOL CALL FAILED');
             console.error(err);
 
-            // Blad z backendu SAP (np. 400/403/500) - Cloud SDK go rzuca jako
-            // err.response, wiec przekazujemy prawdziwy status i tresc dalej.
+            // Error from the SAP backend (e.g. 400/403/500) - Cloud SDK
+            // throws it as err.response, so we forward the real status and
+            // body instead of a generic 500.
             const r = err?.response ?? err?.cause?.response;
             if (r) {
                 sendJson(req, r.status, r.data);
