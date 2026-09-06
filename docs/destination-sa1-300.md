@@ -1,13 +1,13 @@
-# Polaczenie z SA1_300
+# Connecting to SA1_300
 
-Skrypty nie wolaja SAP bezposrednio - zawsze ida przez **destination `SA1_300`**
-na BTP. Warstwa transportu (`scripts/lib/transport.mjs`) wybiera implementacje
-automatycznie.
+The scripts never call SAP directly - they always go through the
+**`SA1_300` destination** on BTP. The transport layer
+(`scripts/lib/transport.mjs`) picks an implementation automatically.
 
-## 1. SAP Cloud SDK (preferowane)
+## 1. SAP Cloud SDK (preferred)
 
-Uzywane, gdy w projekcie sa zainstalowane `@sap-cloud-sdk/connectivity`
-i `@sap-cloud-sdk/http-client`. To ten sam wzorzec co w `business-partner-ai`
+Used when `@sap-cloud-sdk/connectivity` and `@sap-cloud-sdk/http-client` are
+installed in the project. Same pattern as in `business-partner-ai`
 (`srv/lib/bpClient.js`):
 
 ```js
@@ -19,62 +19,65 @@ const response = await executeHttpRequest(destination, {
 });
 ```
 
-Cloud SDK zalatwia za nas: token XSUAA, connectivity proxy dla destination
-`OnPremise` (Cloud Connector), principal propagation, oraz token CSRF
-(`{ fetchCsrfToken: true }` przy POST).
+Cloud SDK handles all of this for us: the XSUAA token, the connectivity
+proxy for `OnPremise` destinations (Cloud Connector), principal propagation,
+and the CSRF token (`{ fetchCsrfToken: true }` on POST).
 
-Instalacja (osobno, gdy bedziesz gotowy):
+Install it (separately, whenever you're ready):
 
 ```bash
 npm i @sap-cloud-sdk/connectivity @sap-cloud-sdk/http-client
 ```
 
-## 2. Fallback wbudowany (zero zaleznosci)
+## 2. Built-in fallback (zero dependencies)
 
-Gdy Cloud SDK nie jest zainstalowany, dziala wlasna implementacja na `node:http`:
+When Cloud SDK isn't installed, a homegrown implementation on `node:http`
+kicks in:
 
-- czyta `VCAP_SERVICES` -> binding `destination`,
-- pobiera token client-credentials z XSUAA,
-- pyta `GET {uri}/destination-configuration/v1/destinations/SA1_300`,
-- dla `ProxyType=OnPremise` dokłada connectivity proxy (absolute-URI) +
+- reads `VCAP_SERVICES` -> the `destination` binding,
+- fetches a client-credentials token from XSUAA,
+- calls `GET {uri}/destination-configuration/v1/destinations/SA1_300`,
+- for `ProxyType=OnPremise` adds the connectivity proxy (absolute-URI) +
   `Proxy-Authorization` + `SAP-Connectivity-SCC-Location_Id`,
-- token CSRF pobiera recznie (`x-csrf-token: Fetch` + ciasteczka).
+- fetches the CSRF token by hand (`x-csrf-token: Fetch` + cookies).
 
-Ograniczenie: przez proxy obsluguje cele `http://` (typowe dla Cloud Connectora).
-Cel `https://` przez proxy wymagalby tunelu CONNECT - skrypt zglosi to jasnym bledem.
+Limitation: through the proxy it only supports `http://` targets (typical
+for Cloud Connector). An `https://` target through the proxy would need a
+CONNECT tunnel - the script reports this with a clear error.
 
-Wymuszenie implementacji: `TRANSPORT=cloud-sdk` albo `TRANSPORT=builtin`.
+Force a specific implementation: `TRANSPORT=cloud-sdk` or `TRANSPORT=builtin`.
 
-## Konfiguracja
+## Configuration
 
-### W BTP (Cloud Foundry)
+### On BTP (Cloud Foundry)
 
-Nic nie trzeba ustawiac. Aplikacja musi miec zbindowane uslugi:
+Nothing to configure. The app just needs the services bound:
 
 ```yaml
 # mta.yaml
 requires:
   - name: <app>-destination-service
-  - name: <app>-connectivity      # tylko dla destination OnPremise
+  - name: <app>-connectivity      # only for OnPremise destinations
   - name: <app>-xsuaa
 ```
 
-`VCAP_SERVICES` czytaja oba transporty.
+`VCAP_SERVICES` is read by both transports.
 
-### Lokalnie, wariant 1 - zmienna `destinations`
+### Locally, option 1 - the `destinations` variable
 
-Format Cloud SDK, dzialajacy takze w fallbacku. Jedna linia w `.env`:
+Cloud SDK's format, also supported by the fallback. One line in `.env`:
 
 ```
 destinations=[{"name":"SA1_300","url":"https://host:44300","username":"USER","password":"PASS"}]
 ```
 
-### Lokalnie, wariant 2 - `default-env.json`
+### Locally, option 2 - `default-env.json`
 
-Plik z pelnym `VCAP_SERVICES` + `VCAP_APPLICATION` (symulacja CF). Wtedy Cloud SDK
-robi realny lookup uslugi destination. Plik jest w `.gitignore`.
+A file with a full `VCAP_SERVICES` + `VCAP_APPLICATION` (simulating CF).
+Cloud SDK then does a real destination-service lookup. The file is in
+`.gitignore`.
 
-### Lokalnie, wariant 3 - bezposredni URL (tylko fallback)
+### Locally, option 3 - direct URL (fallback only)
 
 ```
 SA1_URL=https://host:44300
@@ -82,21 +85,21 @@ SA1_USER=USER
 SA1_PASSWORD=PASS
 ```
 
-## Kolejnosc rozwiazywania (fallback)
+## Resolution order (fallback)
 
-1. `destinations` (JSON, format Cloud SDK)
+1. `destinations` (JSON, Cloud SDK format)
 2. `SA1_URL` / `SA1_USER` / `SA1_PASSWORD`
 3. `VCAP_SERVICES` -> Destination Service
 
-Jesli zaden nie zadziala, skrypt konczy sie komunikatem mowiacym, czego brakuje.
+If none of these work, the script exits with a message saying what's missing.
 
-## Diagnostyka
+## Troubleshooting
 
-| Objaw | Co sprawdzic |
+| Symptom | What to check |
 |---|---|
-| `Brak bindingu "destination"` | uruchamiasz lokalnie bez `.env` albo appka nie ma zbindowanej uslugi |
-| `HTTP 401` | zle haslo w destination, wygasle konto techniczne, zly mandant |
-| `HTTP 403` przy POST | token CSRF (patrz [sa1-tool-repository-api.md](sa1-tool-repository-api.md)) |
-| `HTTP 404` na `$metadata` | serwis nieaktywowany w `/IWFND/MAINT_SERVICE` albo zla `SOURCE_SERVICE_PATH` |
-| timeout na OnPremise | Cloud Connector nie wystawia hosta / zly Location ID |
-| `ECONNREFUSED` lokalnie | brak VPN do systemu SA1 |
+| `Missing "destination" binding` | you're running locally without `.env`, or the app has no service bound |
+| `HTTP 401` | wrong password in the destination, expired technical user, wrong client |
+| `HTTP 403` on POST | CSRF token (see [sa1-tool-repository-api.md](sa1-tool-repository-api.md)) |
+| `HTTP 404` on `$metadata` | service not activated in `/IWFND/MAINT_SERVICE`, or wrong `SOURCE_SERVICE_PATH` |
+| timeout on OnPremise | Cloud Connector isn't exposing the host / wrong Location ID |
+| `ECONNREFUSED` locally | no VPN to the SA1 system |

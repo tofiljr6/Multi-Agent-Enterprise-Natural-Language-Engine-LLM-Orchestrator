@@ -1,16 +1,16 @@
-# Dokumentacja
+# Documentation
 
-| Dokument | Zawartosc |
+| Document | Content |
 |---|---|
-| [sa1-tool-repository-api.md](sa1-tool-repository-api.md) | Twoj serwis OData na SA1_300 - model danych, deep insert, odczyt, bledy |
-| [destination-sa1-300.md](destination-sa1-300.md) | Jak skrypty lacza sie z SA1_300 (Cloud SDK i fallback), konfiguracja BTP i lokalna |
+| [sa1-tool-repository-api.md](sa1-tool-repository-api.md) | Your OData service on SA1_300 - data model, deep insert, reads, errors |
+| [destination-sa1-300.md](destination-sa1-300.md) | How the scripts connect to SA1_300 (Cloud SDK and fallback), BTP and local configuration |
 | [scripts.md](scripts.md) | Pipeline `$metadata` -> `tools.json` -> `POST /ToolSet` |
-| [metadata-to-tool-mapping.md](metadata-to-tool-mapping.md) | Reguly mapowania EDMX na Tool i ToolParameter |
-| [agent-service.md](agent-service.md) | `AgentService.ask` - LangChain agent, ktory dynamicznie binduje narzedzia z SA1_300 |
+| [metadata-to-tool-mapping.md](metadata-to-tool-mapping.md) | Rules for mapping EDMX to Tool and ToolParameter |
+| [agent-service.md](agent-service.md) | `AgentService.ask` - a LangChain agent that dynamically binds tools from SA1_300 |
 
-## Co to jest
+## What this is
 
-Repozytorium narzedzi (tools) dla agentow AI, trzymane **w SAP**, nie w kodzie agenta.
+A tool repository for AI agents, kept **in SAP**, not in the agent's code.
 
 ```
 API_BUSINESS_PARTNER/$metadata          (SA1_300)
@@ -19,18 +19,18 @@ API_BUSINESS_PARTNER/$metadata          (SA1_300)
             v
      .cache/*.metadata.xml
             |
-            |  scripts/generate-tools.mjs      <- reguly mapowania
+            |  scripts/generate-tools.mjs      <- mapping rules
             v
-        out/tools.json                          (payloady deep insert)
+        out/tools.json                          (deep insert payloads)
             |
             |  scripts/post-tools.mjs
             v
    POST /ToolSet  ->  ZXXXX_OD_TOOL + ZXXXX_OD_TOOL_P   (SA1_300)
             |
             v
-      agent czyta GET /ToolSet?$expand=to_Parameters
-      i buduje z tego swoje tool definitions w runtime
+      the agent reads GET /ToolSet?$expand=to_Parameters
+      and builds its tool definitions from it at runtime
 ```
 
-Oba konce - zrodlo metadanych i repozytorium narzedzi - siedza na tym samym
-destination `SA1_300`.
+Both ends - the metadata source and the tool repository - sit on the same
+destination, `SA1_300`.

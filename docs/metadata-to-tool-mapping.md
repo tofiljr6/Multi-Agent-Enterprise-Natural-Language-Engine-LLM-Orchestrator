@@ -1,90 +1,100 @@
-# Mapowanie $metadata -> Tool / ToolParameter
+# Mapping $metadata -> Tool / ToolParameter
 
-Reguly zaimplementowane w `scripts/lib/toolgen.mjs`.
+Rules implemented in `scripts/lib/toolgen.mjs`.
 
-## Co powstaje z jednego EntitySet
+## What comes out of one EntitySet
 
-Dla `A_BusinessPartner` (typ `A_BusinessPartnerType`, klucz `BusinessPartner`,
-nawigacje `to_BusinessPartnerAddress`, `to_BusinessPartnerBank`):
+For `A_BusinessPartner` (type `A_BusinessPartnerType`, key `BusinessPartner`,
+navigations `to_BusinessPartnerAddress`, `to_BusinessPartnerBank`):
 
-| Narzedzie | HTTPMethod | NavigationProp | Parametry |
+| Tool | HTTPMethod | NavigationProp | Parameters |
 |---|---|---|---|
-| `get_business_partner` | GET | - | klucze jako `KEY` |
-| `list_business_partner` | GET | - | do 5 property jako `FILTER` |
-| `get_business_partner_address` | GET | `to_BusinessPartnerAddress` | klucze zrodla jako `KEY` |
-| `get_business_partner_bank` | GET | `to_BusinessPartnerBank` | klucze zrodla jako `KEY` |
+| `get_business_partner` | GET | - | keys as `KEY` |
+| `list_business_partner` | GET | - | up to 5 properties as `FILTER` |
+| `get_business_partner_address` | GET | `to_BusinessPartnerAddress` | source keys as `KEY` |
+| `get_business_partner_bank` | GET | `to_BusinessPartnerBank` | source keys as `KEY` |
 
-Kazdy typ mozna wylaczyc: `GEN_READ_BY_KEY`, `GEN_LIST`, `GEN_NAVIGATION`.
+Each kind can be turned off: `GEN_READ_BY_KEY`, `GEN_LIST`, `GEN_NAVIGATION`.
 
-## Nazewnictwo
+## Naming
 
-| Zrodlo | Wynik |
+| Source | Result |
 |---|---|
-| `A_BusinessPartner` | prefiks `A_` usuwany -> `business_partner` |
-| `A_BusinessPartnerType` | sufiks `Type` usuwany |
-| `to_BusinessPartnerAddress` na `A_BusinessPartner` | `to_` usuwane + powtorzony prefiks encji usuwany -> `address` |
+| `A_BusinessPartner` | `A_` prefix stripped -> `business_partner` |
+| `A_BusinessPartnerType` | `Type` suffix stripped |
+| `to_BusinessPartnerAddress` on `A_BusinessPartner` | `to_` stripped + repeated entity prefix stripped -> `address` |
 | `ToolName` | `get_` / `list_` + snake_case |
-| `ParamName` | camelCase property OData, np. `BusinessPartner` -> `businessPartner` |
+| `ParamName` | camelCase of the OData property, e.g. `BusinessPartner` -> `businessPartner` |
 
-Nazwy dluzsze niz `LIMIT_TOOL_NAME` sa przycinane na granicy `_`, a kolizje
-rozwiazywane sufiksem `_2`, `_3`.
+Names longer than `LIMIT_TOOL_NAME` are truncated at an `_` boundary, and
+collisions are resolved with a `_2`, `_3` suffix.
 
-## Typy parametrow
+## Parameter types
 
-| Typ EDM | ParamType |
+| EDM type | ParamType |
 |---|---|
 | `Edm.String`, `Edm.Guid`, `Edm.Binary` | `STRING` |
 | `Edm.Boolean` | `BOOLEAN` |
 | `Edm.Byte`, `Edm.SByte`, `Edm.Int16/32/64`, `Edm.Decimal`, `Edm.Double`, `Edm.Single` | `NUMBER` |
 | `Edm.DateTime`, `Edm.DateTimeOffset` | `DATE` |
 | `Edm.Time` | `TIME` |
-| pozostale | `STRING` |
+| anything else | `STRING` |
 
-## ParamUsage i IsRequired
+## ParamUsage and IsRequired
 
-| Zrodlo | ParamUsage | IsRequired |
+| Source | ParamUsage | IsRequired |
 |---|---|---|
-| property z `<Key>` | `KEY` | `X` |
-| property filtrowalna (nie-klucz) | `FILTER` | pusty |
+| property from `<Key>` | `KEY` | `X` |
+| filterable property (non-key) | `FILTER` | empty |
 
-`Pos` to numer porzadkowy `001`, `002`, ... - kolejnosc taka jak w `$metadata`
-(dla kluczy: kolejnosc `PropertyRef` w `<Key>`, co jest wazne przy kluczach zlozonych).
+`Pos` is a sequence number `001`, `002`, ... - in the same order as in
+`$metadata` (for keys: the order of `PropertyRef` inside `<Key>`, which
+matters for composite keys).
 
 ## SelectFields
 
-Klucze zawsze na poczatku, potem property posortowane heurystyka
-"jak bardzo opisowe": premiowane sa te z `sap:label`, typu `Edm.String`
-i `MaxLength <= 60`; karane techniczne (`Created*`, `LastChange*`,
-`Authorization*`). Bierzemy pierwsze `MAX_SELECT_FIELDS` (domyslnie 6),
-calosc przycinana do `LIMIT_SELECT_FIELDS` znakow.
+Keys always come first, then properties sorted by a "how descriptive is
+this" heuristic: properties with a `sap:label`, of type `Edm.String` and
+with `MaxLength <= 60` are favored; technical-looking ones (`Created*`,
+`LastChange*`, `Authorization*`) are penalized. We take the first
+`MAX_SELECT_FIELDS` (6 by default), truncated overall to
+`LIMIT_SELECT_FIELDS` characters.
 
-To heurystyka - dla kluczowych narzedzi warto poprawic `SelectFields` recznie
-w `out/tools.json` przed wyslaniem.
+This is a heuristic - for important tools it's worth fixing `SelectFields`
+by hand in `out/tools.json` before sending it off. Note that `SelectFields`
+is stored for documentation purposes only: `srv/lib/toolExecutor.js`
+(the runtime executor used by `AgentService`) deliberately ignores it and
+always fetches the full record, because a bad guess here silently drops
+data the agent needs (see [agent-service.md](agent-service.md)).
 
 ## FilterTemplate
 
-`FILTER_TEMPLATE_STYLE=placeholders` (domyslnie) sklada szablon z placeholderow:
+`FILTER_TEMPLATE_STYLE=placeholders` (the default) builds a template out of
+placeholders:
 
 ```
 Customer eq '{customer}' and BusinessPartnerCategory eq '{businessPartnerCategory}'
 ```
 
-Stringi i daty w apostrofach, liczby i booleany bez. `FILTER_TEMPLATE_STYLE=none`
-zostawia `FilterTemplate` puste - wtedy agent sklada `$filter` sam z parametrow.
+Strings and dates are quoted, numbers and booleans are not.
+`FILTER_TEMPLATE_STYLE=none` leaves `FilterTemplate` empty - in that case the
+agent builds `$filter` itself from the parameters.
 
-Narzedzia `get_*` (po kluczu) i nawigacyjne zawsze maja `FilterTemplate` puste.
+`get_*` tools (by key) and navigation tools always have an empty
+`FilterTemplate`.
 
-## Property pomijane
+## Properties that are skipped
 
-- z `sap:filterable="false"` - nie trafiaja do parametrow `FILTER`
-- `Created*`, `LastChange*` - pomijane jako filtry (rzadko sensowne dla agenta)
-- EntitySety z `sap:addressable="false"` - pomijane przy `--all`
+- properties with `sap:filterable="false"` - never become `FILTER` parameters
+- `Created*`, `LastChange*` - skipped as filters (rarely useful for an agent)
+- EntitySets with `sap:addressable="false"` - skipped with `--all`
 
-## Czego mapowanie nie robi
+## What the mapping does not do
 
-- **Tylko GET.** `HTTPMethod` zawsze `GET`; narzedzia zapisujace trzeba dodac recznie.
-- **Bez funkcji importow** (`FunctionImport` z `$metadata` jest ignorowany).
-- **Bez nawigacji zagniezdzonych** - tylko jeden poziom od encji zrodlowej.
-- **Bez opisow z anotacji** innych niz `sap:label`; `ToolDesc` jest generowany
-  szablonowo, wiec dla waznych narzedzi warto go przepisac na jezyk, ktorym
-  agent ma sie kierowac przy wyborze narzedzia.
+- **GET only.** `HTTPMethod` is always `GET`; write tools have to be added by hand.
+- **No `FunctionImport`** (function imports from `$metadata` are ignored).
+- **No nested navigation** - only one level away from the source entity.
+- **No descriptions from annotations** other than `sap:label`; `ToolDesc` is
+  generated from a template (or, optionally, by OpenAI - see
+  [scripts.md](scripts.md)), so for important tools it's worth rewriting it
+  in language that actually helps the agent decide when to use the tool.

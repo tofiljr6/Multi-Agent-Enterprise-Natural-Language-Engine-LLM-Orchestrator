@@ -1,12 +1,12 @@
-# AgentService - LangChain agent z narzedziami z SA1_300
+# AgentService - a LangChain agent with tools from SA1_300
 
-CAP service, ktory odpowiada na dowolne pytanie (`query`) przy pomocy LLM
-(LangChain, `createAgent`), z narzedziami zaladowanymi **dynamicznie** przy
-kazdym wywolaniu z repozytorium narzedzi na `SA1_300` (ten sam mechanizm co
-`KpiToolService.getTools` - `GET ToolSet?$expand=to_Parameters`). Zaden tool
-nie jest hardcodowany w kodzie agenta: dopisanie nowego narzedzia do SAP
-(patrz [scripts.md](scripts.md) / [sa1-tool-repository-api.md](sa1-tool-repository-api.md))
-sprawia, ze jest ono od razu dostepne dla agenta, bez deployu.
+A CAP service that answers any question (`query`) using an LLM (LangChain,
+`createAgent`), with tools loaded **dynamically** on every call from the
+tool repository on `SA1_300` (the same mechanism as
+`KpiToolService.getTools` - `GET ToolSet?$expand=to_Parameters`). No tool is
+hardcoded in the agent's code: adding a new tool in SAP (see
+[scripts.md](scripts.md) / [sa1-tool-repository-api.md](sa1-tool-repository-api.md))
+makes it available to the agent immediately, with no redeploy.
 
 ```
 POST /odata/v4/agent/ask  { "query": "..." }
@@ -15,9 +15,9 @@ POST /odata/v4/agent/ask  { "query": "..." }
   fetchToolCatalog()        GET ToolSet?$expand=to_Parameters (SA1_300)
         |
         v
-  toLangChainTools()        Tool + ToolParameter -> tool() z langchain
-        |                   (schema = zod, func = wywolanie OData przez
-        |                    ten sam destination, wg ParamUsage KEY/FILTER)
+  toLangChainTools()        Tool + ToolParameter -> tool() from langchain
+        |                   (schema = zod, func = an OData call through
+        |                    the same destination, per ParamUsage KEY/FILTER)
         v
   createAgent({model, tools}).invoke({messages: [...]})
         |
@@ -25,52 +25,67 @@ POST /odata/v4/agent/ask  { "query": "..." }
   { answer, toolsAvailable, toolCalls }
 ```
 
-## Pliki
+## Files
 
-| Plik | Rola |
+| File | Role |
 |---|---|
 | `srv/AgentService.cds` | `action ask(query: String) returns LargeString` |
-| `srv/AgentService.js` | Buduje agenta LangChain i go wywoluje |
-| `srv/lib/toolCatalog.js` | `fetchToolCatalog()` - GET ToolSet z SA1_300 |
-| `srv/lib/toolExecutor.js` | `callSapTool()` - realne wywolanie OData dla jednego Tool |
-| `srv/lib/agentTools.js` | `toLangChainTools()` - Tool/ToolParameter -> `tool()` LangChain |
+| `srv/AgentService.js` | Builds and invokes the LangChain agent |
+| `srv/lib/toolCatalog.js` | `fetchToolCatalog()` - GET ToolSet from SA1_300 |
+| `srv/lib/toolExecutor.js` | `callSapTool()` - the actual OData call for one Tool |
+| `srv/lib/agentTools.js` | `toLangChainTools()` - Tool/ToolParameter -> LangChain `tool()` |
 
-## Konfiguracja
+Note on `srv/lib/toolExecutor.js`: it deliberately ignores the `SelectFields`
+stored on the Tool and always fetches the full record. `SelectFields` is
+picked by a heuristic at generation time (see
+[metadata-to-tool-mapping.md](metadata-to-tool-mapping.md)) and can miss the
+exact columns a user is asking about (e.g. it once picked technical address
+fields over `StreetName`/`CityName`) - since `$select` truncates the OData
+response on the server side, a bad guess there is a silent, unrecoverable
+loss of data for the model. Fetching the full record costs a bit more
+payload but removes that entire failure mode.
 
-Wymagany `OPENAI_API_KEY` w `.env` (patrz `.env.example`) albo jako zmienna
-srodowiskowa/user-provided service na BTP. Brak destination `SA1_300` (np.
-lokalnie bez skonfigurowanego `destinations`) da blad przy pobieraniu
-katalogu narzedzi - identycznie jak w `KpiToolService.getTools`.
+## Configuration
 
-## Wywolanie
+Requires `OPENAI_API_KEY` in `.env` (see `.env.example`), or as an
+environment variable / user-provided service on BTP. A missing `SA1_300`
+destination (e.g. locally without `destinations` configured) will fail when
+fetching the tool catalog - exactly like in `KpiToolService.getTools`.
+
+## Calling it
 
 ```bash
-npm run agent:ask -- "Podaj dane partnera biznesowego o numerze 1000000"
+npm run agent:ask -- "Give me the business partner with number 1000000"
 
-# albo z inna instancja (np. na BTP):
-node scripts/ask-agent.mjs --url https://twoja-app.cfapps.eu10.hana.ondemand.com/odata/v4/agent/ask "..."
+# or against another instance (e.g. on BTP):
+node scripts/ask-agent.mjs --url https://your-app.cfapps.eu10.hana.ondemand.com/odata/v4/agent/ask "..."
 ```
 
-Domyslny endpoint to lokalny `cds watch` (`http://localhost:4004/odata/v4/agent/ask`);
-nadpisz go flaga `--url` albo `AGENT_SERVICE_URL` w `.env`.
+The default endpoint is a local `cds watch`
+(`http://localhost:4004/odata/v4/agent/ask`); override it with `--url` or
+`AGENT_SERVICE_URL` in `.env`.
 
 ```
 endpoint : http://localhost:4004/odata/v4/agent/ask
-query    : Podaj dane partnera biznesowego o numerze 1000000
+query    : Give me the business partner with number 1000000
 
-narzedzia dostepne (4): get_business_partner, list_business_partner, ...
+tools available (4): get_business_partner, list_business_partner, ...
 
-wywolane narzedzia:
-  - get_business_partner -> {"BusinessPartner":"1000000", ...}
+tools called (1):
+  [1] get_business_partner({"businessPartner":"1000000"})
+      -> {"BusinessPartner":"1000000", ...}
 
-odpowiedz:
+answer:
 ...
 ```
 
-Rowniez dziala zwykly curl, jesli wolisz:
+The same tool call info (`[agent] tool ...(...) -> ...`) is also logged
+server-side, in the `cds watch` terminal.
+
+Plain curl works too, if you prefer it:
 
 ```bash
 curl -X POST http://localhost:4004/odata/v4/agent/ask \
   -H "Content-Type: application/json" \
-  -d '{"query": "Podaj dane partnera biznesowego o numerze 1000000"}'
+  -d '{"query": "Give me the business partner with number 1000000"}'
 ```
