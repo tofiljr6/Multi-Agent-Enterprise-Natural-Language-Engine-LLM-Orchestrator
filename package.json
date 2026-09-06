@@ -22,7 +22,8 @@
     "metadata": "node scripts/fetch-metadata.mjs",
     "tools:generate": "node scripts/generate-tools.mjs",
     "tools:preview": "node scripts/post-tools.mjs --dry-run",
-    "tools:post": "node scripts/post-tools.mjs"
+    "tools:post": "node scripts/post-tools.mjs",
+    "agent:ask": "node scripts/ask-agent.mjs"
   },
   "private": true,
   "cds": {

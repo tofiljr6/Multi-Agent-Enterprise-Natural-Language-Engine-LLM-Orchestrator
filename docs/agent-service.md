@@ -45,21 +45,32 @@ katalogu narzedzi - identycznie jak w `KpiToolService.getTools`.
 ## Wywolanie
 
 ```bash
+npm run agent:ask -- "Podaj dane partnera biznesowego o numerze 1000000"
+
+# albo z inna instancja (np. na BTP):
+node scripts/ask-agent.mjs --url https://twoja-app.cfapps.eu10.hana.ondemand.com/odata/v4/agent/ask "..."
+```
+
+Domyslny endpoint to lokalny `cds watch` (`http://localhost:4004/odata/v4/agent/ask`);
+nadpisz go flaga `--url` albo `AGENT_SERVICE_URL` w `.env`.
+
+```
+endpoint : http://localhost:4004/odata/v4/agent/ask
+query    : Podaj dane partnera biznesowego o numerze 1000000
+
+narzedzia dostepne (4): get_business_partner, list_business_partner, ...
+
+wywolane narzedzia:
+  - get_business_partner -> {"BusinessPartner":"1000000", ...}
+
+odpowiedz:
+...
+```
+
+Rowniez dziala zwykly curl, jesli wolisz:
+
+```bash
 curl -X POST http://localhost:4004/odata/v4/agent/ask \
   -H "Content-Type: application/json" \
   -d '{"query": "Podaj dane partnera biznesowego o numerze 1000000"}'
 ```
-
-Odpowiedz:
-
-```json
-{
-  "answer": "...",
-  "toolsAvailable": ["get_business_partner", "list_business_partner", "..."],
-  "toolCalls": [
-    { "tool": "get_business_partner", "output": "{\"BusinessPartner\":\"1000000\", ...}" }
-  ]
-}
-```
-
-Na BTP zamiast `localhost:4004` uzyj adresu wdrozonej aplikacji.
