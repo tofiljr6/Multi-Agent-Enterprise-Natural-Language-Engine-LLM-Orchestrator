@@ -73,6 +73,13 @@ export const config = {
     paramDesc: Number(env.LIMIT_PARAM_DESC ?? 255),
   },
 
+  // --- GenAiTestService: SAP AI Core / Generative AI Hub (Orchestration Service) ---
+  genai: {
+    destination: env.GENAI_DESTINATION_NAME ?? 'genai-dest',
+    modelName: env.GENAI_MODEL_NAME ?? 'gpt-4o-mini',
+    resourceGroup: env.GENAI_RESOURCE_GROUP ?? 'default',
+  },
+
   paths: {
     metadata: env.METADATA_FILE ?? path.join(ROOT, '.cache', `${env.SOURCE_SERVICE_NAME ?? 'API_BUSINESS_PARTNER'}.metadata.xml`),
     tools: path.join(ROOT, 'out', 'tools.json'),

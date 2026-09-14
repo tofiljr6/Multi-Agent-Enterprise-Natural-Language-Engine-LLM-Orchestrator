@@ -23,7 +23,8 @@
     "tools:generate": "node scripts/generate-tools.mjs",
     "tools:preview": "node scripts/post-tools.mjs --dry-run",
     "tools:post": "node scripts/post-tools.mjs",
-    "agent:ask": "node scripts/ask-agent.mjs"
+    "agent:ask": "node scripts/ask-agent.mjs",
+    "genai:test": "node scripts/test-genai.mjs"
   },
   "private": true,
   "cds": {
