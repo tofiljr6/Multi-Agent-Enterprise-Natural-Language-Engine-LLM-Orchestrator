@@ -8,6 +8,7 @@
 | [metadata-to-tool-mapping.md](metadata-to-tool-mapping.md) | Rules for mapping EDMX to Tool and ToolParameter |
 | [agent-service.md](agent-service.md) | `AgentService.ask` - a LangChain agent that dynamically binds tools from SA1_300 |
 | [chat-ui.md](chat-ui.md) | `app/chat` - a Fiori freestyle chat UI for AgentService, with a "Thinking" tool trace |
+| [genai-test-service.md](genai-test-service.md) | `GenAiTestService.ask` - standalone test of the `genai-dest` destination against SAP AI Core / Generative AI Hub |
 
 ## What this is
 
